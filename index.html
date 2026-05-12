@@ -459,8 +459,7 @@ function renderEmpty() {
 
 function loadDemo(e) {
   e.preventDefault();
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(DEMO_DATA))));
-  window.location.hash = encoded;
+  renderReport(DEMO_DATA);
 }
 
 function toggleCard(header) {
@@ -474,16 +473,54 @@ function toggleAll() {
   document.getElementById('toggle-label').textContent = allOpen ? '展开全部' : '收起全部';
 }
 
+function showLoading() {
+  document.getElementById('app').innerHTML = `
+    <div class="empty-state">
+      <h2 style="color:var(--text-2);">加载中...</h2>
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('app').innerHTML = `
+    <div class="empty-state">
+      <h2>加载失败</h2>
+      <p>${msg}</p>
+      <a class="demo-btn" href="#" onclick="loadDemo(event)">查看示例报告</a>
+    </div>`;
+}
+
+async function loadFromGist(gistId) {
+  showLoading();
+  try {
+    const resp = await fetch('https://api.github.com/gists/' + gistId);
+    if (!resp.ok) throw new Error('Gist 不存在或无权限访问 (HTTP ' + resp.status + ')');
+    const gist = await resp.json();
+    const file = Object.values(gist.files)[0];
+    if (!file) throw new Error('Gist 中没有文件');
+    const data = JSON.parse(file.content);
+    renderReport(data);
+  } catch (e) {
+    console.error('Failed to load gist:', e);
+    showError(e.message);
+  }
+}
+
 function init() {
   const hash = window.location.hash.slice(1);
   if (!hash) { renderEmpty(); return; }
+
+  if (hash.startsWith('gist:')) {
+    loadFromGist(hash.slice(5));
+    return;
+  }
+
   try {
     const json = decodeURIComponent(escape(atob(hash)));
     const data = JSON.parse(json);
     renderReport(data);
   } catch (e) {
     console.error('Failed to parse report data:', e);
-    renderEmpty();
+    showError('链接数据解析失败，可能已被截断。');
   }
 }
 
