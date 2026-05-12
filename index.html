@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>体验评审报告</title>
+<style>
+:root {
+  --bg: #0A0A0A;
+  --surface: #18181B;
+  --surface-2: #27272A;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: rgba(255,255,255,0.92);
+  --text-2: rgba(255,255,255,0.65);
+  --text-3: rgba(255,255,255,0.45);
+  --brand: #60A5FA;
+  --c-severe: #EF4444; --c-warn: #F59E0B; --c-suggest: #60A5FA; --c-hit: #22C55E; --c-miss: rgba(255,255,255,0.3);
+  --font-sf: "SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-sc: "Noto Sans SC","PingFang SC",-apple-system,sans-serif;
+  --font-mono: "SF Mono",ui-monospace,Monaco,Consolas,monospace;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:var(--font-sc); line-height:1.6; min-height:100vh; overflow-x:hidden; }
+
+.hero { padding:48px 32px 32px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,rgba(96,165,250,0.04) 0%,transparent 100%); }
+.hero-inner { max-width:1080px; margin:0 auto; }
+.hero-tag { display:inline-block; padding:4px 12px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.3); border-radius:999px; font-family:var(--font-mono); font-size:11px; color:var(--brand); letter-spacing:0.5px; margin-bottom:16px; }
+.hero h1 { font-family:var(--font-sf); font-size:36px; font-weight:700; letter-spacing:-0.5px; margin-bottom:12px; }
+.hero .sub { font-size:15px; color:var(--text-2); margin-bottom:24px; max-width:820px; line-height:1.8; }
+.hero-stats { display:flex; gap:32px; flex-wrap:wrap; }
+.stat { display:flex; flex-direction:column; gap:2px; }
+.stat-num { font-family:var(--font-mono); font-size:28px; font-weight:700; }
+.stat-num.severe { color:var(--c-severe); }
+.stat-num.warn { color:var(--c-warn); }
+.stat-num.suggest { color:var(--c-suggest); }
+.stat-num.total { color:var(--text); }
+.stat-label { font-size:12px; color:var(--text-3); letter-spacing:0.5px; }
+.scene-tags { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.scene-tag { padding:4px 12px; background:rgba(255,255,255,0.06); border:1px solid var(--border-strong); border-radius:999px; font-size:12px; font-weight:600; color:var(--text-2); }
+
+.container { max-width:1080px; margin:0 auto; padding:0 32px; }
+.section { padding:48px 0; border-bottom:1px solid var(--border); }
+.section-hd { margin-bottom:28px; }
+.section-num { font-family:var(--font-mono); font-size:12px; color:var(--text-3); letter-spacing:1px; margin-bottom:8px; }
+.section h2 { font-family:var(--font-sf); font-size:24px; font-weight:700; letter-spacing:-0.3px; margin-bottom:6px; }
+.section-desc { color:var(--text-2); font-size:14px; max-width:820px; }
+
+.focus-card { padding:20px 24px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25); border-left:3px solid var(--c-warn); border-radius:12px; margin-bottom:32px; }
+.focus-label { font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:1px; color:var(--c-warn); margin-bottom:6px; }
+.focus-text { font-size:15px; color:var(--text); line-height:1.7; }
+.boundary-note { margin-top:12px; font-size:12px; color:var(--text-3); }
+
+.problem-list { display:grid; gap:12px; }
+.problem-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; position:relative; transition:border-color 0.2s; }
+.problem-card:hover { border-color:var(--border-strong); }
+.problem-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; }
+.problem-card[data-level="严重"]::before { background:var(--c-severe); }
+.problem-card[data-level="警告"]::before { background:var(--c-warn); }
+.problem-card[data-level="建议"]::before { background:var(--c-suggest); }
+
+.problem-header { display:flex; align-items:flex-start; gap:14px; padding:20px 24px; cursor:pointer; user-select:none; transition:background 0.15s; }
+.problem-header:hover { background:rgba(255,255,255,0.02); }
+.problem-num { flex-shrink:0; width:32px; height:32px; display:grid; place-items:center; border-radius:8px; font-family:var(--font-mono); font-size:14px; font-weight:700; color:#fff; margin-top:2px; }
+.problem-card[data-level="严重"] .problem-num { background:rgba(239,68,68,0.2); color:#FCA5A5; }
+.problem-card[data-level="警告"] .problem-num { background:rgba(245,158,11,0.2); color:#FDE68A; }
+.problem-card[data-level="建议"] .problem-num { background:rgba(96,165,250,0.2); color:#93C5FD; }
+.problem-info { flex:1; min-width:0; }
+.problem-summary-text { font-family:var(--font-sf); font-size:15px; font-weight:600; color:var(--text); line-height:1.5; margin-bottom:8px; }
+.problem-tags { display:flex; flex-wrap:wrap; gap:6px; }
+
+.tag { padding:3px 10px; border-radius:999px; font-family:var(--font-mono); font-size:10px; font-weight:600; letter-spacing:0.3px; }
+.tag.severe { background:rgba(239,68,68,0.18); color:#FCA5A5; }
+.tag.warn { background:rgba(245,158,11,0.18); color:#FDE68A; }
+.tag.suggest { background:rgba(96,165,250,0.18); color:#93C5FD; }
+.tag.type { background:rgba(168,85,247,0.18); color:#C4B5FD; }
+.tag.basis { background:rgba(34,197,94,0.18); color:#86EFAC; }
+
+.expand-icon { flex-shrink:0; width:20px; height:20px; display:grid; place-items:center; color:var(--text-3); transition:transform 0.25s ease; margin-top:6px; }
+.problem-card.open .expand-icon { transform:rotate(180deg); }
+
+.problem-detail { max-height:0; overflow:hidden; transition:max-height 0.4s ease; }
+.problem-card.open .problem-detail { max-height:800px; }
+.detail-inner { padding:0 24px 24px 70px; }
+.detail-field { margin-top:16px; }
+.detail-field-label { font-family:var(--font-sf); font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+.detail-field-value { font-size:14px; color:var(--text-2); line-height:1.7; }
+.detail-field-value ul { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.detail-field-value li { padding-left:16px; position:relative; line-height:1.6; }
+.detail-field-value li::before { content:'·'; position:absolute; left:4px; color:var(--brand); font-weight:700; }
+.detail-note { margin-top:16px; padding:12px 16px; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:8px; font-size:13px; color:#FDE68A; }
+
+.toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.expand-all-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:1px solid var(--border-strong); border-radius:999px; background:var(--surface); color:var(--text-3); font-family:var(--font-mono); font-size:12px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+.expand-all-btn:hover { background:var(--surface-2); color:var(--text); border-color:rgba(255,255,255,0.25); }
+
+.coverage-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.coverage-table { width:100%; border-collapse:collapse; }
+.coverage-table th { padding:14px 20px; text-align:left; font-family:var(--font-sf); font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); background:rgba(0,0,0,0.3); border-bottom:1px solid var(--border); }
+.coverage-table td { padding:14px 20px; font-size:14px; color:var(--text-2); border-bottom:1px solid var(--border); }
+.coverage-table tr:last-child td { border-bottom:0; }
+.coverage-table tr:hover td { background:rgba(255,255,255,0.02); }
+.coverage-table td strong { color:var(--text); font-weight:600; }
+.status-badge { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-family:var(--font-mono); font-size:11px; font-weight:600; }
+.status-badge.hit { background:rgba(34,197,94,0.15); color:#86EFAC; }
+.status-badge.miss { background:rgba(255,255,255,0.06); color:var(--text-3); }
+.status-badge::before { content:''; width:6px; height:6px; border-radius:50%; }
+.status-badge.hit::before { background:var(--c-hit); }
+.status-badge.miss::before { background:var(--c-miss); }
+.coverage-table a { color:var(--brand); text-decoration:none; font-weight:600; font-size:13px; }
+.coverage-table a:hover { text-decoration:underline; }
+.coverage-table a::after { content:" ↗"; font-size:11px; opacity:0.6; }
+
+.toc { position:fixed; top:50%; right:24px; transform:translateY(-50%); z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 10px 32px rgba(0,0,0,0.4); }
+.toc a { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-family:var(--font-mono); font-size:11px; color:var(--text-3); text-decoration:none; transition:all 0.15s; }
+.toc a:hover { background:rgba(255,255,255,0.06); color:var(--text); }
+@media (max-width:1100px) { .toc { display:none; } }
+
+.footer { padding:32px; text-align:center; font-size:12px; color:var(--text-3); border-top:1px solid var(--border); }
+
+/* Empty state */
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; padding:40px; }
+.empty-state h2 { font-family:var(--font-sf); font-size:24px; font-weight:700; margin-bottom:12px; }
+.empty-state p { color:var(--text-2); font-size:15px; max-width:520px; line-height:1.8; }
+.empty-state .demo-btn { margin-top:24px; display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.3); border-radius:999px; color:var(--brand); font-family:var(--font-mono); font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.15s; }
+.empty-state .demo-btn:hover { background:rgba(96,165,250,0.2); }
+
+@media (max-width:768px) {
+  .hero { padding:32px 20px 24px; }
+  .hero h1 { font-size:26px; }
+  .hero-stats { gap:20px; }
+  .container { padding:0 20px; }
+  .section { padding:36px 0; }
+  .problem-header { padding:16px 18px; gap:10px; }
+  .detail-inner { padding-left:18px; }
+  .stat-num { font-size:22px; }
+  .coverage-table th,.coverage-table td { padding:10px 14px; font-size:13px; }
+}
+@media print {
+  body { background:#fff; color:#111; }
+  .toc,.expand-all-btn { display:none; }
+  .problem-detail { max-height:none !important; }
+  .problem-card { break-inside:avoid; }
+  :root { --surface:#f9f9f9; --surface-2:#f0f0f0; --border:#e0e0e0; --border-strong:#ccc; --text:#111; --text-2:#555; --text-3:#999; }
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+/**
+ * Report Data Schema:
+ * {
+ *   title: string,           // 评审标题
+ *   date: string,            // 评审日期
+ *   scenes: string[],        // 涉及场景
+ *   focus: string,           // 优先关注
+ *   problems: [{
+ *     level: "严重"|"警告"|"建议",
+ *     type: string,          // 问题类型中文短名
+ *     summary: string,       // 问题摘要 (25字以内)
+ *     basis: string,         // 对应依据
+ *     detail: {              // 详情 (可选)
+ *       fullSummary: string,
+ *       observations: string[],
+ *       impacts: string[],
+ *       suggestion: string,
+ *       note?: string
+ *     }
+ *   }],
+ *   coverage: [{
+ *     dimension: string,     // 规则维度
+ *     hit: boolean,          // 是否命中
+ *     description: string,   // 说明
+ *     source: { name: string, url: string }
+ *   }]
+ * }
+ */
+
+const DEMO_DATA = {
+  title: "WPS智能助理面板改版方案",
+  date: "2026-05-12",
+  scenes: ["个人面板", "功能入口落位", "用户引导"],
+  focus: "面板从"传输助手"更名为"WPS智能助理"，但保留了大量传输功能，定位与内容割裂。",
+  problems: [
+    {
+      level: "警告", type: "信息切割",
+      summary: "面板更名但核心内容仍是传输和云盘，定位不一致",
+      basis: "个人面板-A+定位一致性",
+      detail: {
+        fullSummary: "面板从"传输助手"更名为"WPS智能助理"，但核心内容仍以传输和云盘功能为主。",
+        observations: [
+          "面板名称改为"WPS智能助理"，但保留了传输列表、上传、云空间等文件管理功能",
+          "智能建议仅展示3条，面板其余空间由传输和云盘功能占据"
+        ],
+        impacts: ["用户认知预期与实际内容不匹配"],
+        suggestion: "建议评估命名是否应体现双重定位，或明确分阶段迁移计划。"
+      }
+    },
+    {
+      level: "警告", type: "打断任务流",
+      summary: "智能建议每次打开自动刷新，非用户主动请求",
+      basis: "注意力模型-准入判断",
+      detail: {
+        fullSummary: "智能建议在每次打开面板时自动拉取刷新，非用户主动请求。",
+        observations: [
+          "PRD明确"每次打开面板时主动拉取智能建议数据"",
+          "用户打开面板的动机可能是查看传输进度，智能建议并非其目标"
+        ],
+        impacts: ["非主动内容占据面板顶部，干扰原本操作目标"],
+        suggestion: "建议评估智能建议区是否可在用户进入"助理"模式时才突出展示。"
+      }
+    },
+    {
+      level: "警告", type: "多焦点冲突",
+      summary: "AI建议、传输列表、云空间三域并列无主次",
+      basis: "注意力模型-调度规则",
+      detail: {
+        fullSummary: "面板内同时承载AI建议、传输列表、云空间三个功能域，缺少主次层级。",
+        observations: [
+          "面板从上到下依次为：身份区→智能建议→传输列表→云空间信息",
+          "智能建议和传输列表属不同任务域，在有限面板空间内竞争注意力"
+        ],
+        impacts: ["用户难以快速判断面板核心功能"],
+        suggestion: "建议明确各区域优先级，或通过Tab/分区将功能域分离。"
+      }
+    },
+    {
+      level: "建议", type: "长期占位",
+      summary: "智能建议缺少生命周期管理和频次控制",
+      basis: "用户引导-生命周期",
+      detail: {
+        fullSummary: "智能建议缺少生命周期管理和频次控制。",
+        observations: [
+          "PRD未说明建议的展示频次限制或冷却机制",
+          "建议每次打开面板均刷新，无终止条件"
+        ],
+        impacts: ["低价值建议反复展示可能降低用户信任"],
+        suggestion: "建议增加频次控制和用户反馈机制。"
+      }
+    },
+    {
+      level: "建议", type: "信息切割",
+      summary: "建议发现在托盘，执行跳转到cowork，链路跨容器",
+      basis: "功能入口落位-五维模型",
+      detail: {
+        fullSummary: "智能建议发现在托盘面板，执行跳转到cowork面板，任务链路跨容器。",
+        observations: [
+          "点击智能建议后跳转到cowork，内容带到cowork输入框",
+          ""安排新任务"也跳转到cowork"
+        ],
+        impacts: ["发现入口与执行容器分离，用户需跨容器完成任务"],
+        suggestion: "建议评估是否可在面板内提供轻量预览或确认。",
+        note: "如cowork作为统一AI执行入口是既定产品策略，此跳转可能是合理架构选择。"
+      }
+    }
+  ],
+  coverage: [
+    { dimension: "个人面板", hit: true, description: "重命名后定位与内容不一致", source: { name: "个人面板规范", url: "https://www.kdocs.cn/l/cpYnt7BN8P9S" } },
+    { dimension: "功能入口落位", hit: true, description: "任务链路跨容器", source: { name: "入口落位规范", url: "https://www.kdocs.cn/l/cqQbmfudmaIB" } },
+    { dimension: "用户引导", hit: true, description: "缺少生命周期控制", source: { name: "用户引导规范", url: "https://www.kdocs.cn/l/cp3CoF7QpUtR" } },
+    { dimension: "注意力模型", hit: true, description: "准入和调度均触发", source: { name: "注意力模型", url: "https://www.kdocs.cn/l/csXX1ZXgbnyq" } },
+    { dimension: "运营位", hit: false, description: "未发现运营位红线", source: { name: "注意力模型", url: "https://www.kdocs.cn/l/csXX1ZXgbnyq" } }
+  ]
+};
+
+const RULE_LINKS = {
+  "注意力模型": "https://www.kdocs.cn/l/csXX1ZXgbnyq",
+  "一级界面": "https://www.kdocs.cn/l/cbS0kTBUZazA",
+  "身份卡": "https://www.kdocs.cn/l/cvaYb6zSVblw",
+  "右键菜单": "https://www.kdocs.cn/l/caGo3aQuafrj",
+  "浮动工具栏": "https://www.kdocs.cn/l/cfjP21LgXnNZ",
+  "用户引导": "https://www.kdocs.cn/l/cp3CoF7QpUtR",
+  "运营位": "https://www.kdocs.cn/l/csXX1ZXgbnyq",
+  "个人面板": "https://www.kdocs.cn/l/cpYnt7BN8P9S",
+  "功能入口落位": "https://www.kdocs.cn/l/cqQbmfudmaIB",
+  "增值应用框架": "https://365.kdocs.cn/l/cdxmJRCwN3KO"
+};
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function levelClass(level) {
+  if (level === '严重') return 'severe';
+  if (level === '警告') return 'warn';
+  return 'suggest';
+}
+
+function countByLevel(problems, level) {
+  return problems.filter(p => p.level === level).length;
+}
+
+function renderReport(data) {
+  const severe = countByLevel(data.problems, '严重');
+  const warn = countByLevel(data.problems, '警告');
+  const suggest = countByLevel(data.problems, '建议');
+  const total = data.problems.length;
+
+  let problemsHTML = data.problems.map((p, i) => {
+    const lc = levelClass(p.level);
+    let detailHTML = '';
+    if (p.detail) {
+      const d = p.detail;
+      const obsHTML = d.observations.map(o => `<li>${esc(o)}</li>`).join('');
+      const impHTML = d.impacts.map(o => `<li>${esc(o)}</li>`).join('');
+      const noteHTML = d.note ? `<div class="detail-note">备注：${esc(d.note)}</div>` : '';
+      detailHTML = `
+        <div class="problem-detail">
+          <div class="detail-inner">
+            <div class="detail-field">
+              <div class="detail-field-label">问题摘要</div>
+              <div class="detail-field-value">${esc(d.fullSummary)}</div>
+            </div>
+            <div class="detail-field">
+              <div class="detail-field-label">客观现象</div>
+              <div class="detail-field-value"><ul>${obsHTML}</ul></div>
+            </div>
+            <div class="detail-field">
+              <div class="detail-field-label">可能影响</div>
+              <div class="detail-field-value"><ul>${impHTML}</ul></div>
+            </div>
+            <div class="detail-field">
+              <div class="detail-field-label">建议方向</div>
+              <div class="detail-field-value">${esc(d.suggestion)}</div>
+            </div>
+            ${noteHTML}
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="problem-card" data-level="${esc(p.level)}">
+        <div class="problem-header" onclick="toggleCard(this)">
+          <span class="problem-num">${i + 1}</span>
+          <div class="problem-info">
+            <div class="problem-summary-text">${esc(p.summary)}</div>
+            <div class="problem-tags">
+              <span class="tag ${lc}">${esc(p.level)}</span>
+              <span class="tag type">${esc(p.type)}</span>
+              <span class="tag basis">${esc(p.basis)}</span>
+            </div>
+          </div>
+          <span class="expand-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg></span>
+        </div>
+        ${detailHTML}
+      </div>`;
+  }).join('');
+
+  let coverageHTML = '';
+  if (data.coverage && data.coverage.length) {
+    const rows = data.coverage.map(c => {
+      const statusCls = c.hit ? 'hit' : 'miss';
+      const statusText = c.hit ? '已命中' : '已检查未命中';
+      const link = c.source.url
+        ? `<a href="${esc(c.source.url)}" target="_blank" rel="noopener">${esc(c.source.name)}</a>`
+        : esc(c.source.name);
+      return `<tr>
+        <td><strong>${esc(c.dimension)}</strong></td>
+        <td><span class="status-badge ${statusCls}">${statusText}</span></td>
+        <td>${esc(c.description)}</td>
+        <td>${link}</td>
+      </tr>`;
+    }).join('');
+    coverageHTML = `
+      <section id="coverage" class="section">
+        <div class="container">
+          <div class="section-hd">
+            <div class="section-num">PART · 02</div>
+            <h2>规则覆盖情况</h2>
+            <p class="section-desc">本次评审加载的规则维度及命中情况。</p>
+          </div>
+          <div class="coverage-card">
+            <table class="coverage-table">
+              <thead><tr><th>规则维度</th><th>状态</th><th>说明</th><th>来源</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+      </section>`;
+  }
+
+  const sceneTags = data.scenes.map(s => `<span class="scene-tag">${esc(s)}</span>`).join('');
+
+  document.getElementById('app').innerHTML = `
+    <nav class="toc">
+      <a href="#summary" title="评审摘要">①</a>
+      <a href="#problems" title="问题总览">②</a>
+      ${data.coverage?.length ? '<a href="#coverage" title="规则覆盖">③</a>' : ''}
+    </nav>
+
+    <section class="hero">
+      <div class="hero-inner">
+        <span class="hero-tag">EXPERIENCE AUDIT REPORT · ${esc(data.date)}</span>
+        <h1>${esc(data.title)}</h1>
+        <p class="sub">${esc(data.focus)}</p>
+        <div class="hero-stats">
+          <div class="stat"><span class="stat-num severe">${severe}</span><span class="stat-label">严重</span></div>
+          <div class="stat"><span class="stat-num warn">${warn}</span><span class="stat-label">警告</span></div>
+          <div class="stat"><span class="stat-num suggest">${suggest}</span><span class="stat-label">建议</span></div>
+          <div class="stat"><span class="stat-num total">${total}</span><span class="stat-label">问题总计</span></div>
+        </div>
+        <div class="scene-tags">${sceneTags}</div>
+      </div>
+    </section>
+
+    <section id="summary" class="section">
+      <div class="container">
+        <div class="focus-card">
+          <div class="focus-label">PRIORITY FOCUS · 优先关注</div>
+          <div class="focus-text">${esc(data.focus)}</div>
+          <div class="boundary-note">以下结果仅用于评审辅助，不替代最终设计或业务决策。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="problems" class="section">
+      <div class="container">
+        <div class="section-hd">
+          <div class="section-num">PART · 01</div>
+          <h2>问题总览</h2>
+          <p class="section-desc">共识别 ${total} 个需关注问题。点击展开查看详细分析。</p>
+        </div>
+        <div class="toolbar">
+          <div></div>
+          <button class="expand-all-btn" onclick="toggleAll()">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
+            <span id="toggle-label">展开全部</span>
+          </button>
+        </div>
+        <div class="problem-list">${problemsHTML}</div>
+      </div>
+    </section>
+
+    ${coverageHTML}
+
+    <footer class="footer">
+      体验评审辅助助手 · Audit Report<br>
+      <span style="font-family:var(--font-mono);margin-top:6px;display:inline-block;">
+        ${total} issues · ${warn} warnings · ${suggest} suggestions · ${data.coverage?.length || 0} rules checked
+      </span>
+    </footer>`;
+
+  document.title = `体验评审报告 · ${data.title}`;
+}
+
+function renderEmpty() {
+  document.getElementById('app').innerHTML = `
+    <div class="empty-state">
+      <h2>体验评审报告查看器</h2>
+      <p>这是一个评审结果可视化工具。当 AI 评审助手生成报告后，会提供一个包含数据的链接，点击即可查看。</p>
+      <a class="demo-btn" href="#" onclick="loadDemo(event)">查看示例报告</a>
+    </div>`;
+}
+
+function loadDemo(e) {
+  e.preventDefault();
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(DEMO_DATA))));
+  window.location.hash = encoded;
+}
+
+function toggleCard(header) {
+  header.closest('.problem-card').classList.toggle('open');
+}
+
+function toggleAll() {
+  const cards = document.querySelectorAll('.problem-card');
+  const allOpen = Array.from(cards).every(c => c.classList.contains('open'));
+  cards.forEach(c => { if (allOpen) c.classList.remove('open'); else c.classList.add('open'); });
+  document.getElementById('toggle-label').textContent = allOpen ? '展开全部' : '收起全部';
+}
+
+function init() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) { renderEmpty(); return; }
+  try {
+    const json = decodeURIComponent(escape(atob(hash)));
+    const data = JSON.parse(json);
+    renderReport(data);
+  } catch (e) {
+    console.error('Failed to parse report data:', e);
+    renderEmpty();
+  }
+}
+
+window.addEventListener('hashchange', init);
+init();
+</script>
+</body>
+</html>
