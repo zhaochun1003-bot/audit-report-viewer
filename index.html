@@ -119,12 +119,23 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-sc); line
 
 .footer { padding:32px; text-align:center; font-size:12px; color:var(--text-3); border-top:1px solid var(--border); }
 
-/* Empty state */
-.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; padding:40px; }
-.empty-state h2 { font-family:var(--font-sf); font-size:24px; font-weight:700; margin-bottom:12px; }
-.empty-state p { color:var(--text-2); font-size:15px; max-width:520px; line-height:1.8; }
-.empty-state .demo-btn { margin-top:24px; display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.3); border-radius:999px; color:var(--brand); font-family:var(--font-mono); font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.15s; }
+/* Empty state + paste panel (Comate 固定短链入口) */
+.empty-state { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; min-height:60vh; text-align:left; padding:40px; max-width:720px; margin:0 auto; }
+.empty-state h2 { font-family:var(--font-sf); font-size:24px; font-weight:700; margin-bottom:12px; text-align:center; }
+.empty-state > .lead { color:var(--text-2); font-size:15px; line-height:1.8; margin-bottom:24px; text-align:center; max-width:560px; margin-left:auto; margin-right:auto; }
+.paste-panel { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
+.paste-panel label { display:block; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:1px; color:var(--text-3); margin-bottom:10px; }
+.paste-panel textarea { width:100%; min-height:180px; padding:14px 16px; border-radius:10px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text); font-family:var(--font-mono); font-size:12px; line-height:1.5; resize:vertical; }
+.paste-panel textarea:focus { outline:none; border-color:rgba(96,165,250,0.5); box-shadow:0 0 0 3px rgba(96,165,250,0.12); }
+.paste-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; align-items:center; }
+.paste-btn { padding:10px 20px; border-radius:999px; border:none; background:rgba(96,165,250,0.25); color:var(--brand); font-family:var(--font-mono); font-size:13px; font-weight:700; cursor:pointer; border:1px solid rgba(96,165,250,0.4); }
+.paste-btn:hover { background:rgba(96,165,250,0.35); }
+.paste-hint { font-size:12px; color:var(--text-3); flex:1; min-width:200px; }
+.empty-actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:8px; }
+.empty-state .demo-btn { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.3); border-radius:999px; color:var(--brand); font-family:var(--font-mono); font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.15s; }
 .empty-state .demo-btn:hover { background:rgba(96,165,250,0.2); }
+.paste-err { margin-top:10px; padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); color:#FCA5A5; font-size:13px; display:none; }
+.paste-err.show { display:block; }
 
 @media (max-width:768px) {
   .hero { padding:32px 20px 24px; }
@@ -448,17 +459,65 @@ function renderReport(data) {
   document.title = `体验评审报告 · ${data.title}`;
 }
 
-function renderEmpty() {
+function renderPasteEmpty() {
   document.getElementById('app').innerHTML = `
     <div class="empty-state">
       <h2>体验评审报告查看器</h2>
-      <p>这是一个评审结果可视化工具。当 AI 评审助手生成报告后，会提供一个包含数据的链接，点击即可查看。</p>
-      <a class="demo-btn" href="#" onclick="loadDemo(event)">查看示例报告</a>
+      <p class="lead">在 WPS Comate 等无法生成短数据链的环境下，请从对话中复制完整 JSON（发送口令 <strong style="color:var(--brand)">输出报告 JSON</strong>），粘贴到下方文本框后点击渲染。</p>
+      <div class="paste-panel">
+        <label for="paste-json">报告 JSON（支持带 \`\`\`json 围栏的粘贴）</label>
+        <textarea id="paste-json" placeholder="{ &quot;title&quot;: &quot;…&quot;, &quot;date&quot;: &quot;…&quot;, … }" spellcheck="false"></textarea>
+        <div id="paste-err" class="paste-err"></div>
+        <div class="paste-actions">
+          <button type="button" class="paste-btn" id="paste-render-btn">渲染报告</button>
+          <span class="paste-hint">数据仅在浏览器本地解析，不会上传到服务器。</span>
+        </div>
+      </div>
+      <div class="empty-actions">
+        <a class="demo-btn" href="#" id="demo-load-btn">查看示例报告</a>
+      </div>
     </div>`;
+  document.getElementById('paste-render-btn').addEventListener('click', applyPastedReport);
+  document.getElementById('demo-load-btn').addEventListener('click', loadDemo);
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('paste') === '1' || q.get('mode') === 'paste') {
+    setTimeout(function () {
+      var ta = document.getElementById('paste-json');
+      if (ta) ta.focus();
+    }, 80);
+  }
+}
+
+function parsePastedReport(raw) {
+  var t = String(raw || '').trim();
+  if (!t) throw new Error('请先粘贴 JSON 内容');
+  if (t.indexOf('```') === 0) {
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  }
+  return JSON.parse(t);
+}
+
+function applyPastedReport() {
+  var errEl = document.getElementById('paste-err');
+  var ta = document.getElementById('paste-json');
+  if (!ta || !errEl) return;
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  try {
+    var data = parsePastedReport(ta.value);
+    renderReport(data);
+  } catch (e) {
+    errEl.textContent = (e && e.message) ? e.message : String(e);
+    errEl.classList.add('show');
+  }
+}
+
+function renderEmpty() {
+  renderPasteEmpty();
 }
 
 function loadDemo(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   renderReport(DEMO_DATA);
 }
 
@@ -484,9 +543,20 @@ function showError(msg) {
   document.getElementById('app').innerHTML = `
     <div class="empty-state">
       <h2>加载失败</h2>
-      <p>${msg}</p>
-      <a class="demo-btn" href="#" onclick="loadDemo(event)">查看示例报告</a>
+      <p class="lead">${msg}</p>
+      <p class="lead" style="margin-top:8px">可从对话复制 JSON，使用下方粘贴方式打开报告。</p>
+      <div class="paste-panel">
+        <label for="paste-json">报告 JSON</label>
+        <textarea id="paste-json" placeholder="粘贴 JSON…" spellcheck="false"></textarea>
+        <div id="paste-err" class="paste-err"></div>
+        <div class="paste-actions">
+          <button type="button" class="paste-btn" id="paste-render-btn">渲染报告</button>
+        </div>
+      </div>
+      <div class="empty-actions"><a class="demo-btn" href="#" id="demo-load-btn">查看示例报告</a></div>
     </div>`;
+  document.getElementById('paste-render-btn').addEventListener('click', applyPastedReport);
+  document.getElementById('demo-load-btn').addEventListener('click', loadDemo);
 }
 
 async function loadFromGist(gistId) {
