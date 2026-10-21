@@ -1510,7 +1510,7 @@ renderSummary();resizeMap(false);
         heading.append(title,kind);copy.append(heading);
         if(parts.length){const subtitle=document.createElement('span');subtitle.className='filter-option-subtitle';subtitle.textContent=parts.join('：');copy.append(subtitle);}
         label.append(input,copy);fieldset.append(label);checkboxes.set(index,input);
-        input.addEventListener('change',()=>{if(input.checked)selected.add(index);else selected.delete(index);if(selected.size&&!selected.has(focusPath))focusPath=sortedSelected()[0];applyFocus(true);updateUI();requestAnimationFrame(updateHash);});
+        input.addEventListener('change',()=>{const wasFocus=focusPath===index;if(input.checked)selected.add(index);else selected.delete(index);if(selected.size&&!selected.has(focusPath)){focusPath=sortedSelected()[0];if(wasFocus)selectedNode=null;}applyFocus(true);updateUI();requestAnimationFrame(updateHash);});
       }
       options.append(fieldset);box.append(summary,options);box.addEventListener('toggle',updateGroupToggle);filterGroups.append(box);groupCounts.set(group.id,count);groupBoxes.set(group.id,box);
     }
@@ -1524,7 +1524,7 @@ renderSummary();resizeMap(false);
       const focus=document.createElement('button');focus.type='button';focus.className='active-filter-chip';focus.setAttribute('aria-pressed',String(index===focusPath));focus.textContent=String(index+1).padStart(2,'0')+' '+paths[index].display_name;
       focus.addEventListener('click',()=>{focusPath=index;applyFocus(true);updateUI();requestAnimationFrame(updateHash);});
       const remove=document.createElement('button');remove.type='button';remove.className='active-filter-remove';remove.setAttribute('aria-label','移除筛选：'+paths[index].display_name);remove.textContent='×';
-      remove.addEventListener('click',()=>{selected.delete(index);if(selected.size&&!selected.has(focusPath))focusPath=sortedSelected()[0];applyFocus(true);updateUI();requestAnimationFrame(updateHash);});
+      remove.addEventListener('click',()=>{const wasFocus=focusPath===index;selected.delete(index);if(selected.size&&!selected.has(focusPath)){focusPath=sortedSelected()[0];if(wasFocus)selectedNode=null;}applyFocus(true);updateUI();requestAnimationFrame(updateHash);});
       item.append(focus,remove);activeFilterChips.append(item);
     }
   };
