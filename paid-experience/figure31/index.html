@@ -1112,6 +1112,24 @@ body{margin:0;overflow:hidden}body.filter-panel-open{overflow:hidden}
   .context-panel .business-context{grid-template-columns:1fr}
   .context-panel .business-context>div+div{border-left:0;border-top:1px solid var(--ui-border-soft)}
 }
+
+
+/* Keep complete context readable while clearly muting unselected paths. */
+.viewport .trace-mode [data-graph-role="node"]{opacity:.34}
+.viewport .trace-mode [data-graph-role="node"].multi-active{opacity:.82}
+.viewport .trace-mode [data-graph-role="node"].active{opacity:1}
+.viewport .trace-mode [data-graph-role="edge"]{opacity:.18}
+.viewport .trace-mode [data-graph-role="edge"].multi-active{opacity:.5}
+.viewport .trace-mode [data-graph-role="edge"].active{opacity:1}
+.viewport .trace-mode .flow-node-title{fill:#626c7c!important}
+.viewport .trace-mode .flow-node-copy{fill:#657080!important}
+.viewport .trace-mode .flow-edge-label{fill:#626c7c!important}
+.viewport .trace-mode .flow-node-title.multi-active{fill:#45566b!important}
+.viewport .trace-mode .flow-node-copy.multi-active{fill:#526171!important}
+.viewport .trace-mode .flow-edge-label.multi-active{fill:#526171!important}
+.viewport .trace-mode .flow-node-title.trace-active{fill:#173a5e!important}
+.viewport .trace-mode .flow-node-copy.trace-active{fill:#4f6271!important}
+.viewport .trace-mode .flow-edge-label.trace-active{fill:#8a5a00!important}
 </style></head>
 <body>
 <a class="skip-link" href="#inspector">跳到节点说明</a>
@@ -1365,7 +1383,8 @@ function renderSummary(){
 }
 function highlight(){
  svg.classList.toggle('trace-mode',activePath!==null);svg.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));
- if(activePath!==null)for(const id of new Set([...paths[activePath].nodes,...paths[activePath].edges]))$(id)?.classList.add('active');
+ svg.querySelectorAll('.trace-active').forEach(e=>e.classList.remove('trace-active'));
+ if(activePath!==null){const activeNodes=new Set(paths[activePath].nodes),activeEdges=new Set(paths[activePath].edges);for(const id of new Set([...activeNodes,...activeEdges]))$(id)?.classList.add('active');svg.querySelectorAll('[data-node-text]').forEach(el=>el.classList.toggle('trace-active',activeNodes.has(el.dataset.nodeText)));svg.querySelectorAll('.flow-edge-label').forEach(el=>el.classList.toggle('trace-active',activeEdges.has(el.dataset.edgeId)));}
  svg.querySelectorAll('.selected-node').forEach(e=>e.classList.remove('selected-node'));if(selectedNode)$(selectedNode).classList.add('selected-node');
  svg.querySelectorAll('[data-node-hit]').forEach(hit=>hit.setAttribute('aria-pressed',String(hit.getAttribute('data-node-hit')===selectedNode)));
 }
@@ -1568,7 +1587,7 @@ renderSummary();resizeMap(false);
     const nodeIds=new Set(),edgeIds=new Set();
     for(const index of selected){const path=paths[index];if(!path)continue;for(const id of path.nodes)nodeIds.add(id);for(const id of path.edges)edgeIds.add(id);}
     const multi=selected.size>1;svg.classList.toggle('multi-selection',multi);
-    if(multi){for(const id of nodeIds)document.getElementById(id)?.classList.add('multi-active');for(const id of edgeIds)document.getElementById(id)?.classList.add('multi-active');}
+    if(multi){for(const id of nodeIds)document.getElementById(id)?.classList.add('multi-active');for(const id of edgeIds)document.getElementById(id)?.classList.add('multi-active');svg.querySelectorAll('[data-node-text]').forEach(el=>{if(nodeIds.has(el.dataset.nodeText))el.classList.add('multi-active')});svg.querySelectorAll('.flow-edge-label').forEach(el=>{if(edgeIds.has(el.dataset.edgeId))el.classList.add('multi-active')});}
   };
   const updateUI=()=>{
     for(const [index,input] of checkboxes)input.checked=selected.has(index);
